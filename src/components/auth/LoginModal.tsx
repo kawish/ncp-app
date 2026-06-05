@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import {
   Dialog,
   DialogTitle,
@@ -17,11 +18,14 @@ import {
   Tab,
 } from '@mui/material';
 import { useAuthModal } from '@/providers/AuthModalProvider';
+import { useAuth } from '@/providers/AuthProvider';
 
 type UserType = 'citizen' | 'government' | 'admin';
 
 export const LoginModal: React.FC = () => {
   const { loginOpen, closeLogin, openSignup } = useAuthModal();
+  const { login } = useAuth();
+  const router = useRouter();
   const [userType, setUserType] = useState<UserType>('citizen');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -52,10 +56,15 @@ export const LoginModal: React.FC = () => {
       await new Promise((resolve) => setTimeout(resolve, 1500));
       console.log('Login attempt:', { email, password, userType });
       
-      // Reset form and close modal
+      login({ email, role: userType });
+
       setEmail('');
       setPassword('');
       closeLogin();
+
+      if (userType === 'citizen') {
+        router.push('/user/dashboard');
+      }
     } catch (err) {
       setError('Login failed. Please try again.');
     } finally {

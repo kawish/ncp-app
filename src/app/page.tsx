@@ -14,7 +14,6 @@ export default function Home() {
       <HeroSection />
       <StatisticsSection />
       <FeaturesSection />
-      <ComplaintFormSection />
       <Footer />
     </>
   );
