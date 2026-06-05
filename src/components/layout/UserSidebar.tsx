@@ -21,6 +21,7 @@ import {
 } from '@mui/icons-material';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { useAuth } from '@/providers/AuthProvider';
 
 const SIDEBAR_WIDTH = 260;
 
@@ -32,16 +33,15 @@ const navItems = [
   { label: 'Settings', Icon: SettingsIcon, href: '/user/settings' },
 ];
 
-interface UserSidebarProps {
-  user: {
-    name: string;
-    email: string;
-    initials: string;
-  };
-}
+const getInitials = (name: string) =>
+  name.split(' ').map((w) => w[0]).join('').slice(0, 2).toUpperCase();
 
-export const UserSidebar: React.FC<UserSidebarProps> = ({ user }) => {
+export const UserSidebar: React.FC = () => {
   const pathname = usePathname();
+  const { user } = useAuth();
+  const displayName = user?.displayName ?? '';
+  const email = user?.email ?? '';
+  const initials = getInitials(displayName);
 
   return (
     <Drawer
@@ -75,14 +75,14 @@ export const UserSidebar: React.FC<UserSidebarProps> = ({ user }) => {
         }}
       >
         <Avatar sx={{ bgcolor: 'primary.main', width: 42, height: 42, fontSize: '0.95rem', fontWeight: 700 }}>
-          {user.initials}
+          {initials}
         </Avatar>
         <Box sx={{ overflow: 'hidden', minWidth: 0 }}>
           <Typography variant="subtitle2" sx={{ fontWeight: 600 }} noWrap>
-            {user.name}
+            {displayName}
           </Typography>
           <Typography variant="caption" color="text.secondary" noWrap>
-            {user.email}
+            {email}
           </Typography>
         </Box>
       </Box>

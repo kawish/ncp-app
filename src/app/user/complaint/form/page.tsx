@@ -75,7 +75,7 @@ export default function FileComplaintPage() {
     <Box sx={{ display: 'flex', flexDirection: 'column', height: '100vh' }}>
       <Header />
       <Box sx={{ display: 'flex', flexGrow: 1, overflow: 'hidden', bgcolor: 'background.default' }}>
-        <UserSidebar user={mockUser} />
+        <UserSidebar />
 
         {/* Main Content */}
         <Box sx={{ flexGrow: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
