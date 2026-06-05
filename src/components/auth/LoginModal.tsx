@@ -13,15 +13,25 @@ import {
   Link,
   CircularProgress,
   Alert,
+  Tabs,
+  Tab,
 } from '@mui/material';
 import { useAuthModal } from '@/providers/AuthModalProvider';
 
+type UserType = 'citizen' | 'government' | 'admin';
+
 export const LoginModal: React.FC = () => {
   const { loginOpen, closeLogin, openSignup } = useAuthModal();
+  const [userType, setUserType] = useState<UserType>('citizen');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+
+  const handleTabChange = (_: React.SyntheticEvent, value: UserType) => {
+    setError('');
+    setUserType(value);
+  };
 
   const handleLogin = async () => {
     setError('');
@@ -40,7 +50,7 @@ export const LoginModal: React.FC = () => {
     try {
       // Simulate API call
       await new Promise((resolve) => setTimeout(resolve, 1500));
-      console.log('Login attempt:', { email, password });
+      console.log('Login attempt:', { email, password, userType });
       
       // Reset form and close modal
       setEmail('');
@@ -60,6 +70,7 @@ export const LoginModal: React.FC = () => {
 
   const handleClose = () => {
     if (!loading) {
+      setUserType('citizen');
       setEmail('');
       setPassword('');
       setError('');
@@ -73,9 +84,11 @@ export const LoginModal: React.FC = () => {
       onClose={handleClose}
       maxWidth="sm"
       fullWidth
-      PaperProps={{
-        sx: {
-          borderRadius: 2,
+      slotProps={{
+        paper: {
+          sx: {
+            borderRadius: 2,
+          },
         },
       }}
     >
@@ -91,6 +104,17 @@ export const LoginModal: React.FC = () => {
       </DialogTitle>
 
       <DialogContent sx={{ paddingTop: 2 }}>
+        <Tabs
+          value={userType}
+          onChange={handleTabChange}
+          variant="fullWidth"
+          sx={{ mb: 2 }}
+        >
+          <Tab label="Citizen" value="citizen" />
+          <Tab label="Government" value="government" />
+          <Tab label="Admin" value="admin" />
+        </Tabs>
+
         {error && (
           <Alert severity="error" sx={{ marginBottom: 2 }}>
             {error}

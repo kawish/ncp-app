@@ -3,7 +3,7 @@
 import React from 'react';
 import { Container, Box, Typography } from '@mui/material';
 import { CheckCircle, Security, Bolt } from '@mui/icons-material';
-import { FeatureCard } from './FeatureCard';
+import { FeatureCard } from '../cards/FeatureCard';
 
 export const FeaturesSection: React.FC = () => {
   const features = [

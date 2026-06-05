@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { Container, Box, Typography } from '@mui/material';
-import { StatCard } from './StatCard';
+import { StatCard } from '../cards/StatCard';
 
 export const StatisticsSection: React.FC = () => {
   const stats = [

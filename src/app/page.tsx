@@ -1,11 +1,11 @@
 'use client';
 
-import { Header } from '@/components/Header';
-import { HeroSection } from '@/components/HeroSection';
-import { StatisticsSection } from '@/components/StatisticsSection';
-import { FeaturesSection } from '@/components/FeaturesSection';
-import { ComplaintFormSection } from '@/components/ComplaintFormSection';
-import { Footer } from '@/components/Footer';
+import { Header } from '@/components/layout/Header';
+import { HeroSection } from '@/components/sections/HeroSection';
+import { StatisticsSection } from '@/components/sections/StatisticsSection';
+import { FeaturesSection } from '@/components/sections/FeaturesSection';
+import { ComplaintFormSection } from '@/components/sections/ComplaintFormSection';
+import { Footer } from '@/components/layout/Footer';
 
 export default function Home() {
   return (
