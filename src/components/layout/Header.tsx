@@ -14,6 +14,7 @@ import {
 import { NotificationsModal } from '@/components/notifications/NotificationsModal';
 import { Brightness4, Brightness7, Notifications as NotificationsIcon } from '@mui/icons-material';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { useTheme } from '@/providers/ThemeProvider';
 import { useAuthModal } from '@/providers/AuthModalProvider';
 import { useAuth } from '@/providers/AuthProvider';
@@ -22,6 +23,7 @@ export const Header: React.FC = () => {
   const { isDarkMode, toggleTheme } = useTheme();
   const { openLogin, openSignup } = useAuthModal();
   const { isLoggedIn, logout } = useAuth();
+  const router = useRouter();
   const [mounted, setMounted] = useState(false);
   const [notifOpen, setNotifOpen] = useState(false);
 
@@ -30,6 +32,11 @@ export const Header: React.FC = () => {
   }, []);
 
   if (!mounted) return null;
+
+  const handleLogout = async () => {
+    await logout();
+    router.push('/');
+  };
 
   return (
     <>
@@ -70,7 +77,7 @@ export const Header: React.FC = () => {
                     <NotificationsIcon />
                   </Badge>
                 </IconButton>
-                <Button variant="outlined" color="error" onClick={logout}>
+                <Button variant="outlined" color="error" onClick={handleLogout}>
                   Logout
                 </Button>
               </>

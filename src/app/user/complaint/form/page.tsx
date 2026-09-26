@@ -13,14 +13,17 @@ import {
   TextField,
   MenuItem,
   Alert,
+  CircularProgress,
 } from '@mui/material';
 import {
   Notifications as NotificationsIcon,
   Send,
+  AutoAwesome,
 } from '@mui/icons-material';
 import { Header } from '@/components/layout/Header';
 import { Footer } from '@/components/layout/Footer';
 import { UserSidebar } from '@/components/layout/UserSidebar';
+import { getRelevantLegalSection } from '@/lib/aiService';
 
 const mockUser = {
   name: 'Ahmed Khan',
@@ -41,13 +44,13 @@ const categories = [
 export default function FileComplaintPage() {
   const [mounted, setMounted] = useState(false);
   const [formData, setFormData] = useState({
-    name: '',
-    email: '',
-    phone: '',
     category: '',
     description: '',
   });
   const [submitted, setSubmitted] = useState(false);
+  const [aiLoading, setAiLoading] = useState(false);
+  const [aiError, setAiError] = useState('');
+  const [relevantInfo, setRelevantInfo] = useState('');
 
   useEffect(() => {
     setMounted(true);
@@ -62,13 +65,28 @@ export default function FileComplaintPage() {
 
   const handleSubmit = (e: React.SyntheticEvent<HTMLFormElement>) => {
     e.preventDefault();
-    if (!formData.name || !formData.email || !formData.category || !formData.description) {
+    if (!formData.category || !formData.description) {
       alert('Please fill in all required fields');
       return;
     }
     setSubmitted(true);
-    setFormData({ name: '', email: '', phone: '', category: '', description: '' });
+    setFormData({ category: '', description: '' });
+    setRelevantInfo('');
+    setAiError('');
     setTimeout(() => setSubmitted(false), 5000);
+  };
+
+  const handleAiAssist = async () => {
+    setAiError('');
+    setAiLoading(true);
+    try {
+      const result = await getRelevantLegalSection(formData.description);
+      setRelevantInfo(result);
+    } catch (err) {
+      setAiError(err instanceof Error ? err.message : 'Failed to get AI assistance');
+    } finally {
+      setAiLoading(false);
+    }
   };
 
   return (
@@ -96,36 +114,6 @@ export default function FileComplaintPage() {
               )}
 
               <form onSubmit={handleSubmit}>
-                <TextField
-                  fullWidth
-                  label="Full Name"
-                  name="name"
-                  value={formData.name}
-                  onChange={handleChange}
-                  margin="normal"
-                  required
-                  variant="outlined"
-                />
-                <TextField
-                  fullWidth
-                  label="Email Address"
-                  name="email"
-                  type="email"
-                  value={formData.email}
-                  onChange={handleChange}
-                  margin="normal"
-                  required
-                  variant="outlined"
-                />
-                <TextField
-                  fullWidth
-                  label="Phone Number"
-                  name="phone"
-                  value={formData.phone}
-                  onChange={handleChange}
-                  margin="normal"
-                  variant="outlined"
-                />
                 <TextField
                   fullWidth
                   select
@@ -156,6 +144,39 @@ export default function FileComplaintPage() {
                   variant="outlined"
                   placeholder="Please describe your complaint in detail..."
                 />
+
+                <Button
+                  type="button"
+                  variant="outlined"
+                  color="secondary"
+                  sx={{ mt: 1 }}
+                  startIcon={aiLoading ? <CircularProgress size={18} /> : <AutoAwesome />}
+                  disabled={!formData.description.trim() || aiLoading}
+                  onClick={handleAiAssist}
+                >
+                  {aiLoading ? 'Analyzing...' : 'AI Assist'}
+                </Button>
+
+                {aiError && (
+                  <Alert severity="error" sx={{ mt: 2 }}>
+                    {aiError}
+                  </Alert>
+                )}
+
+                {relevantInfo && (
+                  <TextField
+                    fullWidth
+                    label="Relevant Information"
+                    value={relevantInfo}
+                    margin="normal"
+                    multiline
+                    minRows={4}
+                    maxRows={20}
+                    variant="outlined"
+                    slotProps={{ input: { readOnly: true } }}
+                  />
+                )}
+
                 <Button
                   type="submit"
                   variant="contained"

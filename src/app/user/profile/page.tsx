@@ -9,6 +9,7 @@ import {
   Card,
   CardContent,
   TextField,
+  MenuItem,
   Button,
   Avatar,
   CircularProgress,
@@ -27,6 +28,8 @@ import { UserSidebar } from '@/components/layout/UserSidebar';
 
 interface ProfileData {
   displayName: string;
+  aadhaar: string;
+  gender: string;
   email: string;
   countryCode: string;
   phone: string;
@@ -38,6 +41,8 @@ interface ProfileData {
 
 const EMPTY_PROFILE: ProfileData = {
   displayName: '',
+  aadhaar: '',
+  gender: '',
   email: '',
   countryCode: '+91',
   phone: '',
@@ -46,6 +51,10 @@ const EMPTY_PROFILE: ProfileData = {
   province: '',
   postalCode: '',
 };
+
+const isValidAadhaar = (value: string) => /^\d{12}$/.test(value);
+const isValidEmail = (value: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
+const isValidPhone = (value: string) => /^\d{1,12}$/.test(value);
 
 const getInitials = (name: string) =>
   name.split(' ').map((w) => w[0]).join('').slice(0, 2).toUpperCase();
@@ -71,6 +80,8 @@ export default function ProfilePage() {
           const data = docSnap.data();
           const loaded: ProfileData = {
             displayName: data.displayName ?? user.displayName,
+            aadhaar: data.aadhaar ?? '',
+            gender: data.gender ?? '',
             email: user.email,
             countryCode: data.countryCode ?? '+91',
             phone: data.phone ?? '',
@@ -94,6 +105,9 @@ export default function ProfilePage() {
   if (!mounted) return null;
 
   const handleChange = (field: keyof ProfileData, value: string) => {
+    if (field === 'phone') {
+      value = value.replace(/\D/g, '').slice(0, 10);
+    }
     setDraft((prev) => ({ ...prev, [field]: value }));
   };
 
@@ -103,10 +117,24 @@ export default function ProfilePage() {
       showSnackbar('Full name cannot be empty.', 'warning');
       return;
     }
+    if (draft.aadhaar && !isValidAadhaar(draft.aadhaar)) {
+      showSnackbar('Aadhaar Number must be exactly 12 digits.', 'warning');
+      return;
+    }
+    if (draft.email && !isValidEmail(draft.email)) {
+      showSnackbar('Please enter a valid email address.', 'warning');
+      return;
+    }
+    if (draft.phone && !isValidPhone(draft.phone)) {
+      showSnackbar('Mobile number must be at most 10 digits.', 'warning');
+      return;
+    }
     setSaving(true);
     try {
       await updateDoc(doc(db, 'users', user.email), {
         displayName: draft.displayName,
+        aadhaar: draft.aadhaar,
+        gender: draft.gender,
         countryCode: draft.countryCode,
         phone: draft.phone,
         address: draft.address,
@@ -133,7 +161,7 @@ export default function ProfilePage() {
   const field = (
     label: string,
     key: keyof ProfileData,
-    opts?: { type?: string; disabled?: boolean }
+    opts?: { type?: string; disabled?: boolean; helperText?: string; error?: boolean; errorText?: string }
   ) => (
     <TextField
       fullWidth
@@ -143,9 +171,15 @@ export default function ProfilePage() {
       type={opts?.type ?? 'text'}
       variant="outlined"
       size="small"
+      error={!!opts?.error}
+      helperText={opts?.error ? opts?.errorText : opts?.helperText}
       slotProps={{ input: { readOnly: !editing || opts?.disabled } }}
     />
   );
+
+  const aadhaarError = editing && draft.aadhaar !== '' && !isValidAadhaar(draft.aadhaar);
+  const emailError = editing && draft.email !== '' && !isValidEmail(draft.email);
+  const phoneError = editing && draft.phone !== '' && !isValidPhone(draft.phone);
 
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', height: '100vh' }}>
@@ -210,15 +244,48 @@ export default function ProfilePage() {
                   </CardContent>
                 </Card>
 
-                {/* Personal / Contact */}
+                {/* Personal Information */}
+                <Card sx={{ mb: 3 }}>
+                  <CardContent>
+                    <Typography variant="subtitle1" sx={{ fontWeight: 700, mb: 2 }}>
+                      Personal Information
+                    </Typography>
+                    <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 2 }}>
+                      {field('Full Name', 'displayName')}
+                      {field('Aadhaar', 'aadhaar', {
+                        helperText: 'Enter 12 digit Aadhaar Number',
+                        error: aadhaarError,
+                        errorText: 'Aadhaar Number must be exactly 12 digits',
+                      })}
+                      <TextField
+                        select
+                        fullWidth
+                        label="Gender"
+                        value={editing ? draft.gender : profile.gender}
+                        onChange={(e) => handleChange('gender', e.target.value)}
+                        variant="outlined"
+                        size="small"
+                        disabled={!editing}
+                      >
+                        <MenuItem value="Male">Male</MenuItem>
+                        <MenuItem value="Female">Female</MenuItem>
+                      </TextField>
+                    </Box>
+                  </CardContent>
+                </Card>
+
+                {/* Contact */}
                 <Card sx={{ mb: 3 }}>
                   <CardContent>
                     <Typography variant="subtitle1" sx={{ fontWeight: 700, mb: 2 }}>
                       Contact Information
                     </Typography>
                     <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 2 }}>
-                      {field('Full Name', 'displayName')}
-                      {field('Email Address', 'email', { disabled: true })}
+                      {field('Email Address', 'email', {
+                        disabled: true,
+                        error: emailError,
+                        errorText: 'Please enter a valid email address',
+                      })}
                       <Box sx={{ display: 'flex', gap: 1 }}>
                         <TextField
                           label="Code"
@@ -229,7 +296,12 @@ export default function ProfilePage() {
                           sx={{ width: 90 }}
                           slotProps={{ input: { readOnly: !editing } }}
                         />
-                        {field('Phone Number', 'phone', { type: 'tel' })}
+                        {field('Phone Number', 'phone', {
+                          type: 'tel',
+                          helperText: 'Max 12 digits',
+                          error: phoneError,
+                          errorText: 'Mobile number must be at most 12 digits',
+                        })}
                       </Box>
                     </Box>
                   </CardContent>

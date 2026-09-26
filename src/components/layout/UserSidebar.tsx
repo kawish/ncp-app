@@ -27,10 +27,10 @@ const SIDEBAR_WIDTH = 260;
 
 const navItems = [
   { label: 'Dashboard', Icon: DashboardIcon, href: '/user/dashboard' },
-  { label: 'My Complaints', Icon: AssignmentIcon, href: '/user/complaints' },
-  { label: 'File Complaint', Icon: AddCircleOutlineIcon, href: '/user/complaint/form' },
+  // { label: 'My Complaints', Icon: AssignmentIcon, href: '/user/complaints' },
+  { label: 'New Complaint', Icon: AddCircleOutlineIcon, href: '/user/complaint/form' },
   { label: 'Profile', Icon: PersonIcon, href: '/user/profile' },
-  { label: 'Settings', Icon: SettingsIcon, href: '/user/settings' },
+  // { label: 'Settings', Icon: SettingsIcon, href: '/user/settings' },
 ];
 
 const getInitials = (name: string) =>

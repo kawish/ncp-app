@@ -3,6 +3,7 @@
 import React from 'react';
 import { Container, Box, Typography, Button } from '@mui/material';
 import { ArrowForward } from '@mui/icons-material';
+import Link from 'next/link';
 
 export const HeroSection: React.FC = () => {
   return (
@@ -39,6 +40,8 @@ export const HeroSection: React.FC = () => {
         </Typography>
         <Box sx={{ display: 'flex', gap: 2, justifyContent: 'center', flexWrap: 'wrap' }}>
           <Button
+            component={Link}
+            href="/user/complaint/form"
             variant="contained"
             size="large"
             sx={{
@@ -52,9 +55,11 @@ export const HeroSection: React.FC = () => {
             }}
             endIcon={<ArrowForward />}
           >
-            File a Complaint
+            New Complaint
           </Button>
           <Button
+            component={Link}
+            href="/user/dashboard"
             variant="outlined"
             size="large"
             sx={{
@@ -68,7 +73,7 @@ export const HeroSection: React.FC = () => {
               },
             }}
           >
-            Learn More
+            Dashboard
           </Button>
         </Box>
       </Container>
