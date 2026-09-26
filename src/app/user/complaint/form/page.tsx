@@ -3,50 +3,73 @@
 import React, { useState, useEffect } from 'react';
 import {
   Box,
-  AppBar,
-  Toolbar,
   Typography,
   Button,
-  IconButton,
-  Badge,
   Container,
   TextField,
-  MenuItem,
   Alert,
   CircularProgress,
+  Grid,
 } from '@mui/material';
-import {
-  Notifications as NotificationsIcon,
-  Send,
-  AutoAwesome,
-} from '@mui/icons-material';
+import { Send, AutoAwesome } from '@mui/icons-material';
 import { Header } from '@/components/layout/Header';
 import { Footer } from '@/components/layout/Footer';
 import { UserSidebar } from '@/components/layout/UserSidebar';
 import { getRelevantLegalSection } from '@/lib/aiService';
+import { DynamicTable, DynamicTableColumn } from '@/components/common/DynamicTable';
 
-const mockUser = {
-  name: 'Ahmed Khan',
-  email: 'ahmed.khan@email.com',
-  initials: 'AK',
-};
+let personRowId = 0;
+const createPersonRow = () => ({ id: ++personRowId, name: '', address: '', mobile: '' });
 
-const categories = [
-  'Public Service',
-  'Infrastructure',
-  'Corruption',
-  'Harassment',
-  'Environmental',
-  'Safety',
-  'Other',
+let evidenceRowId = 0;
+const createEvidenceRow = () => ({ id: ++evidenceRowId, name: '', description: '', file: null as File | null });
+
+type PersonRow = ReturnType<typeof createPersonRow>;
+type EvidenceRow = ReturnType<typeof createEvidenceRow>;
+
+const personColumns: DynamicTableColumn<PersonRow>[] = [
+  { key: 'name', header: 'Name' },
+  { key: 'address', header: 'Address' },
+  { key: 'mobile', header: 'Mobile Number' },
 ];
+
+const evidenceColumns: DynamicTableColumn<EvidenceRow>[] = [
+  { key: 'name', header: 'Name of File' },
+  { key: 'description', header: 'Description' },
+  { key: 'file', header: 'File Upload', type: 'file' },
+];
+
+const complaintDescriptionPlaceholder = `
+  •  What Happened? (Chronological Narrative): 
+  Provide a step-by-step description of how the incident unfolded. Include the exact order of events from start to finish.
+  
+  •  Why Did It Happen? (Motive): 
+  State the suspected reason behind the incident, such as a property dispute, financial fraud, cyber scam, or personal enmity.
+  
+  •  What Was Lost or Damaged? (Property Details): 
+  List all stolen or damaged items with their estimated value and identifying numbers (e.g., phone IMEI numbers, laptop serials, or vehicle registration plates).
+  
+  •  Was Anyone Hurt? (Injuries Sustained): 
+  Describe any physical injuries or severe mental distress caused. Mention if medical reports or doctor certificates are available.
+  
+  •  Were Weapons Involved? (Weapons Used): 
+  Specify if the accused used any weapons, such as sticks, iron rods, firearms, sharp objects, or blunt instruments.
+`;
 
 export default function FileComplaintPage() {
   const [mounted, setMounted] = useState(false);
   const [formData, setFormData] = useState({
-    category: '',
     description: '',
+    incidentDate: '',
+    incidentTime: '',
+    incidentLocation: '',
+    numKnownAccused: '',
+    numUnknownAccused: '',
+    unknownAccusedDescription: '',
   });
+  const [knownAccusedRows, setKnownAccusedRows] = useState<PersonRow[]>([]);
+  const [witnessRows, setWitnessRows] = useState<PersonRow[]>([]);
+  const [evidenceRows, setEvidenceRows] = useState<EvidenceRow[]>([]);
   const [submitted, setSubmitted] = useState(false);
   const [aiLoading, setAiLoading] = useState(false);
   const [aiError, setAiError] = useState('');
@@ -65,12 +88,23 @@ export default function FileComplaintPage() {
 
   const handleSubmit = (e: React.SyntheticEvent<HTMLFormElement>) => {
     e.preventDefault();
-    if (!formData.category || !formData.description) {
+    if (!formData.description || !formData.incidentDate || !formData.incidentTime || !formData.incidentLocation) {
       alert('Please fill in all required fields');
       return;
     }
     setSubmitted(true);
-    setFormData({ category: '', description: '' });
+    setFormData({
+      description: '',
+      incidentDate: '',
+      incidentTime: '',
+      incidentLocation: '',
+      numKnownAccused: '',
+      numUnknownAccused: '',
+      unknownAccusedDescription: '',
+    });
+    setKnownAccusedRows([]);
+    setWitnessRows([]);
+    setEvidenceRows([]);
     setRelevantInfo('');
     setAiError('');
     setTimeout(() => setSubmitted(false), 5000);
@@ -99,7 +133,7 @@ export default function FileComplaintPage() {
         <Box sx={{ flexGrow: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
           {/* Form Area */}
           <Box sx={{ flexGrow: 1, overflowY: 'auto', py: 5 }}>
-            <Container maxWidth="sm">
+            <Container maxWidth="md">
               <Typography variant="h4" sx={{ fontWeight: 700, mb: 1, textAlign: 'center' }}>
                 File Your Complaint
               </Typography>
@@ -114,23 +148,134 @@ export default function FileComplaintPage() {
               )}
 
               <form onSubmit={handleSubmit}>
+                
+
+                {/* Incident Details */}
+                <Typography variant="h6" sx={{ fontWeight: 600, mt: 4, mb: 1 }}>
+                  Incident Details
+                </Typography>
+                <Grid container spacing={2}>
+                  <Grid size={{ xs: 12, sm: 4 }}>
+                    <TextField
+                      fullWidth
+                      type="date"
+                      label="Date"
+                      name="incidentDate"
+                      value={formData.incidentDate}
+                      onChange={handleChange}
+                      required
+                      variant="outlined"
+                      slotProps={{ inputLabel: { shrink: true } }}
+                    />
+                  </Grid>
+                  <Grid size={{ xs: 12, sm: 4 }}>
+                    <TextField
+                      fullWidth
+                      type="time"
+                      label="Time"
+                      name="incidentTime"
+                      value={formData.incidentTime}
+                      onChange={handleChange}
+                      required
+                      variant="outlined"
+                      slotProps={{ inputLabel: { shrink: true } }}
+                    />
+                  </Grid>
+                  <Grid size={{ xs: 12, sm: 4 }}>
+                    <TextField
+                      fullWidth
+                      label="Location"
+                      name="incidentLocation"
+                      value={formData.incidentLocation}
+                      onChange={handleChange}
+                      required
+                      variant="outlined"
+                    />
+                  </Grid>
+                </Grid>
+
+                {/* Accused Details */}
+                <Typography variant="h6" sx={{ fontWeight: 600, mt: 4, mb: 1 }}>
+                  Accused Details
+                </Typography>
+                <Grid container spacing={2}>
+                  <Grid size={{ xs: 12, sm: 6 }}>
+                    <TextField
+                      fullWidth
+                      type="number"
+                      label="Number of known accused"
+                      name="numKnownAccused"
+                      value={formData.numKnownAccused}
+                      onChange={handleChange}
+                      margin="normal"
+                      variant="outlined"
+                      slotProps={{ htmlInput: { min: 0 } }}
+                    />
+                  </Grid>
+                  <Grid size={{ xs: 12, sm: 6 }}>
+                    <TextField
+                      fullWidth
+                      type="number"
+                      label="Number of unknown accused"
+                      name="numUnknownAccused"
+                      value={formData.numUnknownAccused}
+                      onChange={handleChange}
+                      margin="normal"
+                      variant="outlined"
+                      slotProps={{ htmlInput: { min: 0 } }}
+                    />
+                  </Grid>
+                </Grid>
+                <DynamicTable
+                  columns={personColumns}
+                  rows={knownAccusedRows}
+                  createRow={createPersonRow}
+                  onRowsChange={setKnownAccusedRows}
+                />
+
+
                 <TextField
                   fullWidth
-                  select
-                  label="Complaint Category"
-                  name="category"
-                  value={formData.category}
+                  label="Physical Description of unknown accused"
+                  name="unknownAccusedDescription"
+                  value={formData.unknownAccusedDescription}
                   onChange={handleChange}
                   margin="normal"
-                  required
+                  multiline
+                  rows={3}
                   variant="outlined"
-                >
-                  {categories.map((cat) => (
-                    <MenuItem key={cat} value={cat}>
-                      {cat}
-                    </MenuItem>
-                  ))}
-                </TextField>
+                  placeholder="approximate age, height, build, clothing, scars, tattoos, or accent"
+                />
+
+
+                {/* Witness Information */}
+                <Typography variant="h6" sx={{ fontWeight: 600, mt: 4, mb: 1 }}>
+                  Witness Information
+                </Typography>
+                <DynamicTable
+                  columns={personColumns}
+                  rows={witnessRows}
+                  createRow={createPersonRow}
+                  onRowsChange={setWitnessRows}
+                />
+
+                {/* Evidence */}
+                <Typography variant="h6" sx={{ fontWeight: 600, mt: 4, mb: 1 }}>
+                  Evidence
+                </Typography>
+                <DynamicTable
+                  columns={evidenceColumns}
+                  rows={evidenceRows}
+                  createRow={createEvidenceRow}
+                  onRowsChange={setEvidenceRows}
+                />
+
+                {/* Complaint Details */}
+                <Typography variant="h6" sx={{ fontWeight: 600, mt: 4, mb: 1 }}>
+                  Complaint Details
+                </Typography>
+
+                {/* Complaint Information */}
                 <TextField
                   fullWidth
                   label="Complaint Description"
@@ -140,9 +285,17 @@ export default function FileComplaintPage() {
                   margin="normal"
                   required
                   multiline
-                  rows={5}
+                  minRows={10}
+                  maxRows={10}
                   variant="outlined"
-                  placeholder="Please describe your complaint in detail..."
+                  placeholder={complaintDescriptionPlaceholder}
+                  sx={{
+                    '& textarea::placeholder': {
+                      fontSize: '0.875rem',
+                      lineHeight: 1,
+                      opacity: 0.75,
+                    },
+                  }}
                 />
 
                 <Button
@@ -183,7 +336,7 @@ export default function FileComplaintPage() {
                   color="primary"
                   size="large"
                   fullWidth
-                  sx={{ mt: 3, py: 1.5 }}
+                  sx={{ mt: 4, py: 1.5 }}
                   endIcon={<Send />}
                 >
                   Submit Complaint
