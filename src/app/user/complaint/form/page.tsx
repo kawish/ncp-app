@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import {
   Box,
   Typography,
@@ -11,12 +11,13 @@ import {
   CircularProgress,
   Grid,
 } from '@mui/material';
-import { Send, AutoAwesome } from '@mui/icons-material';
+import { Send, AutoAwesome, UploadFile as UploadFileIcon, Visibility as VisibilityIcon } from '@mui/icons-material';
 import { Header } from '@/components/layout/Header';
 import { Footer } from '@/components/layout/Footer';
 import { UserSidebar } from '@/components/layout/UserSidebar';
 import { getRelevantLegalSection } from '@/lib/aiService';
 import { DynamicTable, DynamicTableColumn } from '@/components/common/DynamicTable';
+import { LocationPickerMap } from '@/components/common/LocationPickerMap';
 
 let personRowId = 0;
 const createPersonRow = () => ({ id: ++personRowId, name: '', address: '', mobile: '' });
@@ -33,11 +34,13 @@ const personColumns: DynamicTableColumn<PersonRow>[] = [
   { key: 'mobile', header: 'Mobile Number' },
 ];
 
-const evidenceColumns: DynamicTableColumn<EvidenceRow>[] = [
-  { key: 'name', header: 'Name of File' },
-  { key: 'description', header: 'Description' },
-  { key: 'file', header: 'File Upload', type: 'file' },
-];
+const COORDINATES_PATTERN = /^\s*(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)\s*$/;
+
+function parseCoordinates(value: string): { lat: number; lng: number } | null {
+  const match = value.match(COORDINATES_PATTERN);
+  if (!match) return null;
+  return { lat: parseFloat(match[1]), lng: parseFloat(match[2]) };
+}
 
 const complaintDescriptionPlaceholder = `
   •  What Happened? (Chronological Narrative): 
@@ -62,14 +65,63 @@ export default function FileComplaintPage() {
     description: '',
     incidentDate: '',
     incidentTime: '',
+    incidentCoordinates: '',
     incidentLocation: '',
     numKnownAccused: '',
     numUnknownAccused: '',
     unknownAccusedDescription: '',
   });
-  const [knownAccusedRows, setKnownAccusedRows] = useState<PersonRow[]>([]);
-  const [witnessRows, setWitnessRows] = useState<PersonRow[]>([]);
-  const [evidenceRows, setEvidenceRows] = useState<EvidenceRow[]>([]);
+  const [knownAccusedRows, setKnownAccusedRows] = useState<PersonRow[]>(() => [createPersonRow()]);
+  const [witnessRows, setWitnessRows] = useState<PersonRow[]>(() => [createPersonRow()]);
+  const [evidenceRows, setEvidenceRows] = useState<EvidenceRow[]>(() => [createEvidenceRow()]);
+
+  const evidenceColumns = useMemo<DynamicTableColumn<EvidenceRow>[]>(
+    () => [
+      { key: 'name', header: 'Name of File' },
+      { key: 'description', header: 'Description' },
+      {
+        key: 'file',
+        header: 'File Upload',
+        render: (row) => {
+          if (row.file) {
+            const fileUrl = URL.createObjectURL(row.file);
+            return (
+              <Button
+                size="small"
+                variant="outlined"
+                startIcon={<VisibilityIcon />}
+                onClick={() => window.open(fileUrl, '_blank', 'noopener,noreferrer')}
+              >
+                Preview
+              </Button>
+            );
+          }
+          return (
+            <Button component="label" size="small" variant="outlined" startIcon={<UploadFileIcon />}>
+              Upload
+              <input
+                type="file"
+                hidden
+                accept="application/pdf,.pdf"
+                onChange={(e) => {
+                  const selected = e.target.files?.[0] ?? null;
+                  if (!selected) return;
+                  if (selected.type !== 'application/pdf') {
+                    alert('Only PDF files are allowed');
+                    return;
+                  }
+                  setEvidenceRows((prev) =>
+                    prev.map((r) => (r.id === row.id ? { ...r, file: selected, name: selected.name } : r))
+                  );
+                }}
+              />
+            </Button>
+          );
+        },
+      },
+    ],
+    []
+  );
   const [submitted, setSubmitted] = useState(false);
   const [aiLoading, setAiLoading] = useState(false);
   const [aiError, setAiError] = useState('');
@@ -97,14 +149,15 @@ export default function FileComplaintPage() {
       description: '',
       incidentDate: '',
       incidentTime: '',
+      incidentCoordinates: '',
       incidentLocation: '',
       numKnownAccused: '',
       numUnknownAccused: '',
       unknownAccusedDescription: '',
     });
-    setKnownAccusedRows([]);
-    setWitnessRows([]);
-    setEvidenceRows([]);
+    setKnownAccusedRows([createPersonRow()]);
+    setWitnessRows([createPersonRow()]);
+    setEvidenceRows([createEvidenceRow()]);
     setRelevantInfo('');
     setAiError('');
     setTimeout(() => setSubmitted(false), 5000);
@@ -155,7 +208,7 @@ export default function FileComplaintPage() {
                   Incident Details
                 </Typography>
                 <Grid container spacing={2}>
-                  <Grid size={{ xs: 12, sm: 4 }}>
+                  <Grid size={{ xs: 12, sm: 6 }}>
                     <TextField
                       fullWidth
                       type="date"
@@ -168,7 +221,7 @@ export default function FileComplaintPage() {
                       slotProps={{ inputLabel: { shrink: true } }}
                     />
                   </Grid>
-                  <Grid size={{ xs: 12, sm: 4 }}>
+                  <Grid size={{ xs: 12, sm: 6 }}>
                     <TextField
                       fullWidth
                       type="time"
@@ -181,7 +234,17 @@ export default function FileComplaintPage() {
                       slotProps={{ inputLabel: { shrink: true } }}
                     />
                   </Grid>
-                  <Grid size={{ xs: 12, sm: 4 }}>
+                  <Grid size={12}>
+                    <TextField
+                      fullWidth
+                      label="Coordinates"
+                      name="incidentCoordinates"
+                      value={formData.incidentCoordinates}
+                      margin="normal"
+                      variant="outlined"
+                      placeholder="Select a point on the map below"
+                      slotProps={{ input: { readOnly: true } }}
+                    />
                     <TextField
                       fullWidth
                       label="Location"
@@ -190,6 +253,16 @@ export default function FileComplaintPage() {
                       onChange={handleChange}
                       required
                       variant="outlined"
+                    />
+                    <LocationPickerMap
+                      coordinates={parseCoordinates(formData.incidentCoordinates)}
+                      onLocationSelect={(address, coords) =>
+                        setFormData((prev) => ({
+                          ...prev,
+                          incidentLocation: address,
+                          incidentCoordinates: `${coords.lat.toFixed(6)}, ${coords.lng.toFixed(6)}`,
+                        }))
+                      }
                     />
                   </Grid>
                 </Grid>
@@ -234,18 +307,20 @@ export default function FileComplaintPage() {
                 />
 
 
-                <TextField
-                  fullWidth
-                  label="Physical Description of unknown accused"
-                  name="unknownAccusedDescription"
-                  value={formData.unknownAccusedDescription}
-                  onChange={handleChange}
-                  margin="normal"
-                  multiline
-                  rows={3}
-                  variant="outlined"
-                  placeholder="approximate age, height, build, clothing, scars, tattoos, or accent"
-                />
+                {Number(formData.numUnknownAccused) > 0 && (
+                  <TextField
+                    fullWidth
+                    label="Physical Description of unknown accused"
+                    name="unknownAccusedDescription"
+                    value={formData.unknownAccusedDescription}
+                    onChange={handleChange}
+                    margin="normal"
+                    multiline
+                    rows={3}
+                    variant="outlined"
+                    placeholder="approximate age, height, build, clothing, scars, tattoos, or accent"
+                  />
+                )}
 
 
                 {/* Witness Information */}
