@@ -5,7 +5,7 @@ const BNS_CORPUS_TEXT = Object.entries(bnsCorpus as Record<string, string>)
   .map(([number, title]) => `${number}: ${title}`)
   .join('\n');
 
-function buildPrompt(complaintText: string): string {
+function buildSystemPrompt(): string {
   return `
     You are an Indian legal-reference assistant. Cross-reference the citizen complaint below against the Bharatiya Nyaya Sanhita (BNS) 2023.
 
@@ -32,12 +32,20 @@ function buildPrompt(complaintText: string): string {
     - Every Section and Title you output must be copied verbatim from the list above — never modify, paraphrase, or invent a number or title that is not in the list.
     - Prefer the section that defines the offense itself over one that only sets punishment or procedure.
     - If no section in the list genuinely applies, return no entries rather than forcing a match.
+  `;
+}
 
+function buildComplaintPrompt(complaintText: string): string {
+  return `
     Complaint:
     """
     ${complaintText}
     """
   `;
+}
+
+function buildPrompt(complaintText: string): string {
+  return `${buildSystemPrompt()}${buildComplaintPrompt(complaintText)}`;
 }
 
 function validateAgainstCorpus(rawText: string): string {
@@ -59,27 +67,60 @@ function validateAgainstCorpus(rawText: string): string {
   return validBlocks.join('\n').trim();
 }
 
+function resolveTemplate(value: unknown, variables: Record<string, string>): unknown {
+  if (typeof value === 'string') {
+    return value.replace(/\$\{(\w+)\}/g, (_, key: string) => variables[key] ?? '');
+  }
+  if (Array.isArray(value)) {
+    return value.map((item) => resolveTemplate(item, variables));
+  }
+  if (value && typeof value === 'object') {
+    return Object.fromEntries(
+      Object.entries(value).map(([key, item]) => [key, resolveTemplate(item, variables)]),
+    );
+  }
+  return value;
+}
+
+function readResponsePath(value: unknown, path: readonly (string | number)[]): unknown {
+  return path.reduce<unknown>((current, key) => {
+    if (current === null || current === undefined || typeof current !== 'object') return undefined;
+    return (current as Record<string | number, unknown>)[key];
+  }, value);
+}
+
 export async function fetchRelevantLegalSection(complaintText: string): Promise<string> {
-  const { apiUrl, apiKey, model } = aiConfig.gemini;
+  const modelConfig = aiConfig.models[aiConfig.activeModel];
+  if (!modelConfig) {
+    throw new Error(`Active AI model is not configured: ${aiConfig.activeModel}`);
+  }
+
+  const apiKey = process.env[modelConfig.apiKeyEnv] || '';
   if (!apiKey) {
     throw new Error('AI service is not configured');
   }
 
-  const res = await fetch(`${apiUrl}/${model}:generateContent?key=${apiKey}`, {
+  const variables = {
+    apiKey,
+    model: 'model' in modelConfig ? modelConfig.model : '',
+    systemPrompt: buildSystemPrompt(),
+    complaint: complaintText,
+    prompt: buildPrompt(complaintText),
+  };
+
+  const res = await fetch(String(resolveTemplate(modelConfig.endpoint, variables)), {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      contents: [{ parts: [{ text: buildPrompt(complaintText) }] }],
-    }),
+    headers: resolveTemplate(modelConfig.headers, variables) as Record<string, string>,
+    body: JSON.stringify(resolveTemplate(modelConfig.body, variables)),
   });
 
   if (!res.ok) {
     const errorBody = await res.text();
-    throw new Error(`Gemini request failed with status ${res.status}: ${errorBody}`);
+    throw new Error(`AI request failed with status ${res.status}: ${errorBody}`);
   }
 
   const data = await res.json();
-  const text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+  const text = readResponsePath(data, modelConfig.responsePath);
 
   if (!text) {
     throw new Error('AI response did not contain any content');
